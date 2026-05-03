@@ -7,7 +7,7 @@ venv/
 .env
 
 # Modele ML (trop gros pour GitHub)
-models/*.pkl
+# models/*.pkl
 
 # Fichiers OS
 .DS_Store
@@ -15,4 +15,5 @@ Thumbs.db
 
 # IDE
 .vscode/
-.idea/
+.idea/.venv/
+.venv/
