@@ -172,3 +172,25 @@ print(f"\nProbabilites par classe :")
 for classe, proba in zip(model_loaded.classes_, probas):
     bar = '#' * int(proba * 30)
     print(f"  {classe:8s} : {proba:.1%} {bar}")
+
+
+    # Importance des features
+importances = model.feature_importances_
+for name, imp in sorted(zip(feature_cols, importances),
+                        key=lambda x: x[1], reverse=True):
+    print(f"  {name:20s} : {imp:.3f}")
+
+
+   # Patient 1 : jeune sans symptomes
+p1 = [20, le_sexe.transform(['M'])[0], 37.0, 120, 0, 0, 0, le_region.transform(['Dakar'])[0]]
+
+# Patient 2 : adulte avec forte fievre
+p2 = [35, le_sexe.transform(['F'])[0], 40.5, 130, 1, 1, 1, le_region.transform(['Dakar'])[0]]
+
+# Patient 3 : personne agee avec toux
+p3 = [70, le_sexe.transform(['M'])[0], 38.5, 150, 1, 0, 0, le_region.transform(['Dakar'])[0]]
+
+for i, patient in enumerate([p1, p2, p3], 1):
+    diag = model_loaded.predict([patient])[0]
+    proba = model_loaded.predict_proba([patient])[0].max()
+    print(f"Patient {i} : {diag} ({proba:.1%})")
