@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SenSante - Pre-diagnostic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <header class="bg-blue-600 text-white py-4 shadow-lg">
+        <div class="max-w-4xl mx-auto px-4">
+            <h1 class="text-2xl font-bold">SenSante</h1>
+            <p class="text-blue-100 text-sm">Assistant pré-diagnostic médical</p>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div id="form-section" class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Symptômes du patient</h2>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                        <input type="number" id="age" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 28" min="0" max="120">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sexe</label>
+                        <select id="sexe" class="w-full border border-gray-300 rounded-lg p-2">
+                            <option value="F">Féminin</option>
+                            <option value="M">Masculin</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Température (°C)</label>
+                        <input type="number" id="temperature" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 38.5" min="35" max="42">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tension systolique</label>
+                        <input type="number" id="tension_sys" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: 120" min="60" max="250">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Symptômes</label>
+                        <div class="grid grid-cols-1 gap-2">
+                            <label class="flex items-center p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                                <input type="checkbox" id="toux" class="rounded text-blue-600 mr-2">
+                                <span class="text-gray-700">Toux</span>
+                            </label>
+                            <label class="flex items-center p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                                <input type="checkbox" id="fatigue" class="rounded text-blue-600 mr-2">
+                                <span class="text-gray-700">Fatigue intense</span>
+                            </label>
+                            <label class="flex items-center p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
+                                <input type="checkbox" id="maux_tete" class="rounded text-blue-600 mr-2">
+                                <span class="text-gray-700">Maux de tête</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Région</label>
+                        <select id="region" class="w-full border border-gray-300 rounded-lg p-2">
+                            <option value="Dakar">Dakar</option>
+                            <option value="Thies">Thiès</option>
+                            <option value="Saint-Louis">Saint-Louis</option>
+                            <option value="Ziguinchor">Ziguinchor</option>
+                            <option value="Kaolack">Kaolack</option>
+                            <option value="Autre">Autre...</option>
+                        </select>
+                    </div>
+
+                    <button onclick="diagnostiquer()" id="btn-diag" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition duration-200 shadow-md">
+                        Diagnostiquer
+                    </button>
+                </div>
+            </div>
+
+            <div id="result-section">
+                <div class="bg-white rounded-xl shadow-md p-6 text-center text-gray-400 border border-gray-100">
+                    <p class="text-4xl mb-3">&#129658;</p>
+                    <p class="font-medium text-gray-600">Remplissez le formulaire</p>
+                    <p class="text-sm mt-1">puis cliquez sur Diagnostiquer</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="text-center text-gray-400 text-sm py-8">
+        SenSante v0.3 - ESP / UCAD - L2 GLSI 2026
+    </footer>
+
+    <script>
+        const API_URL = "http://localhost:8000";
+
+        async function diagnostiquer() {
+            // 1. Récupération des données
+            const ageInput = document.getElementById("age");
+            const tempInput = document.getElementById("temperature");
+            const tensInput = document.getElementById("tension_sys");
+
+            if (!ageInput.value || !tempInput.value || !tensInput.value) {
+                afficherErreur("Veuillez remplir tous les champs obligatoires.");
+                return;
+            }
+
+            const patient = {
+                age: parseInt(ageInput.value),
+                sexe: document.getElementById("sexe").value,
+                temperature: parseFloat(tempInput.value),
+                tension_sys: parseInt(tensInput.value),
+                toux: document.getElementById("toux").checked,
+                fatigue: document.getElementById("fatigue").checked,
+                maux_tete: document.getElementById("maux_tete").checked,
+                region: document.getElementById("region").value
+            };
+
+            afficherChargement();
+
+            try {
+                const response = await fetch(`${API_URL}/predict`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(patient)
+                });
+
+                if (!response.ok) throw new Error("Erreur lors de l'appel API");
+
+                const resultat = await response.json();
+                afficherResultat(resultat);
+
+            } catch (error) {
+                afficherErreur("Impossible de contacter le serveur : " + error.message);
+            }
+        }
+
+        function afficherChargement() {
+            const section = document.getElementById("result-section");
+            section.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-6 text-center border border-gray-100">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p class="text-gray-500 font-medium">Analyse en cours...</p>
+                </div>`;
+        }
+
+        function afficherResultat(r) {
+            const couleurs = {
+                palu:   { bg: "bg-red-100",    text: "text-red-800",    bar: "bg-red-500",    badge: "bg-red-500" },
+                grippe: { bg: "bg-orange-100", text: "text-orange-800", bar: "bg-orange-500", badge: "bg-orange-500" },
+                typh:   { bg: "bg-yellow-100", text: "text-yellow-800", bar: "bg-yellow-500", badge: "bg-yellow-500" },
+                sain:   { bg: "bg-green-100",  text: "text-green-800",  bar: "bg-green-500",  badge: "bg-green-500" }
+            };
+
+            const c = couleurs[r.diagnostic] || couleurs["sain"];
+            const pct = Math.round(r.probabilite * 100);
+            const section = document.getElementById("result-section");
+
+            section.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-6 border-t-4 ${c.bar.replace('bg', 'border')}">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Résultat</h2>
+                    <div class="${c.bg} rounded-lg p-4 mb-4">
+                        <p class="text-sm text-gray-600">Diagnostic :</p>
+                        <p class="text-2xl font-bold ${c.text} uppercase mt-1">${r.diagnostic}</p>
+                    </div>
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-gray-600 font-medium">Probabilité</span>
+                            <span class="text-sm font-bold ${c.text}">${pct}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="${c.bar} h-3 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="${c.badge} text-white text-xs px-2 py-1 rounded-full font-bold uppercase">${r.confiance}</span>
+                        <span class="text-sm text-gray-500">confiance</span>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p class="text-sm text-gray-700 italic">${r.message}</p>
+                    </div>
+                </div>`;
+        }
+
+        function afficherErreur(msg) {
+            const section = document.getElementById("result-section");
+            section.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                    <p class="text-red-700 font-bold">${msg}</p>
+                    <p class="text-red-500 text-sm mt-2 font-medium italic">Vérifiez votre connexion et reessayez.</p>
+                </div>`;
+        }
+    </script>
+</body>
+</html>
