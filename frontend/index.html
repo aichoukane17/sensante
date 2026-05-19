@@ -98,9 +98,11 @@
 
     <script>
         const API_URL = "http://localhost:8000";
+        
+        // EXERCICE 2 : Tableau global pour l'historique
+        const historique = [];
 
         async function diagnostiquer() {
-            // 1. Récupération des données
             const ageInput = document.getElementById("age");
             const tempInput = document.getElementById("temperature");
             const tensInput = document.getElementById("tension_sys");
@@ -108,7 +110,7 @@
             if (!ageInput.value || !tempInput.value || !tensInput.value) {
                 afficherErreur("Veuillez remplir tous les champs obligatoires.");
                 return;
-            }
+             };
 
             const patient = {
                 age: parseInt(ageInput.value),
@@ -150,24 +152,47 @@
         }
 
         function afficherResultat(r) {
+            // EXERCICE 1 : Ajout de la propriété emoji pour chaque diagnostic
             const couleurs = {
-                palu:   { bg: "bg-red-100",    text: "text-red-800",    bar: "bg-red-500",    badge: "bg-red-500" },
-                grippe: { bg: "bg-orange-100", text: "text-orange-800", bar: "bg-orange-500", badge: "bg-orange-500" },
-                typh:   { bg: "bg-yellow-100", text: "text-yellow-800", bar: "bg-yellow-500", badge: "bg-yellow-500" },
-                sain:   { bg: "bg-green-100",  text: "text-green-800",  bar: "bg-green-500",  badge: "bg-green-500" }
+                palu:   { bg: "bg-red-100",    text: "text-red-800",    bar: "bg-red-500",    badge: "bg-red-500",    emoji: "🌡️" },
+                grippe: { bg: "bg-orange-100", text: "text-orange-800", bar: "bg-orange-500", badge: "bg-orange-500", emoji: "❄️" },
+                typh:   { bg: "bg-yellow-100", text: "text-yellow-800", bar: "bg-yellow-500", badge: "bg-yellow-500", emoji: "🤢" },
+                sain:   { bg: "bg-green-100",  text: "text-green-800",  bar: "bg-green-500",  badge: "bg-green-500",  emoji: "✅" }
             };
 
             const c = couleurs[r.diagnostic] || couleurs["sain"];
             const pct = Math.round(r.probabilite * 100);
             const section = document.getElementById("result-section");
 
+            // EXERCICE 2 : Enregistrement dans l'historique (Ajout au début, max 5 éléments)
+            historique.unshift({
+                diagnostic: r.diagnostic.toUpperCase(),
+                probabilite: pct
+            });
+            if (historique.length > 5) {
+                historique.pop();
+            }
+
+            // Génération des lignes du tableau à partir de l'historique array
+            const lignesHistorique = historique.map(h => `
+                <tr class="border-b text-sm text-gray-700">
+                    <td class="py-2 font-medium">${h.diagnostic}</td>
+                    <td class="py-2 text-right font-bold">${h.probabilite}%</td>
+                </tr>
+            `).join('');
+
             section.innerHTML = `
                 <div class="bg-white rounded-xl shadow-md p-6 border-t-4 ${c.bar.replace('bg', 'border')}">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">Résultat</h2>
-                    <div class="${c.bg} rounded-lg p-4 mb-4">
-                        <p class="text-sm text-gray-600">Diagnostic :</p>
-                        <p class="text-2xl font-bold ${c.text} uppercase mt-1">${r.diagnostic}</p>
+                    
+                    <div class="${c.bg} rounded-lg p-4 mb-4 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Diagnostic :</p>
+                            <p class="text-2xl font-bold ${c.text} uppercase mt-1">${r.diagnostic}</p>
+                        </div>
+                        <span class="text-4xl">${c.emoji}</span>
                     </div>
+
                     <div class="mb-4">
                         <div class="flex justify-between mb-1">
                             <span class="text-sm text-gray-600 font-medium">Probabilité</span>
@@ -177,14 +202,89 @@
                             <div class="${c.bar} h-3 rounded-full" style="width: ${pct}%"></div>
                         </div>
                     </div>
+
                     <div class="flex items-center gap-2 mb-3">
                         <span class="${c.badge} text-white text-xs px-2 py-1 rounded-full font-bold uppercase">${r.confiance}</span>
                         <span class="text-sm text-gray-500">confiance</span>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 mb-6">
                         <p class="text-sm text-gray-700 italic">${r.message}</p>
                     </div>
+
+                    <div class="mt-6 border-t pt-4">
+                        <h3 class="text-sm font-bold text-gray-700 mb-2">🕒 Dernières consultations</h3>
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b text-xs text-gray-400 uppercase">
+                                    <th class="pb-1 font-semibold">Diagnostic</th>
+                                    <th class="pb-1 text-right font-semibold">Probabilité</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${lignesHistorique}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>`;
+
+            // NOUVEAU : appeler /explain automatiquement (Lab 5)
+            demanderExplication(r);
+        }
+
+        async function demanderExplication(diagnostic_data) {
+            // Récupérer les données du formulaire
+            const explainData = {
+                diagnostic: diagnostic_data.diagnostic,
+                probabilite: diagnostic_data.probabilite,
+                age: parseInt(document.getElementById("age").value),
+                sexe: document.getElementById("sexe").value,
+                temperature: parseFloat(document.getElementById("temperature").value),
+                region: document.getElementById("region").value
+            };
+
+            // Zone d'explication dans le result-section
+            const section = document.getElementById("result-section");
+            
+            // Ajouter un placeholder (animation de chargement)
+            const explDiv = document.createElement("div");
+            explDiv.id = "explication-zone";
+            explDiv.innerHTML = `
+                <div class="mt-4 bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <p class="text-sm text-purple-600 font-medium mb-2">Explication (Llama 3)</p>
+                    <p class="text-gray-500 text-sm animate-pulse">Generation en cours...</p>
+                </div>
+            `;
+            section.querySelector(".bg-white").appendChild(explDiv);
+
+            try {
+                const response = await fetch(API_URL + "/explain", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(explainData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Remplacer le placeholder par la vraie réponse du LLM
+                    explDiv.innerHTML = `
+                        <div class="mt-4 bg-purple-50 rounded-lg p-4 border border-purple-200">
+                            <p class="text-sm text-purple-600 font-medium mb-2">Explication (Llama 3)</p>
+                            <p class="text-gray-700 text-sm leading-relaxed">${result.explication}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                // En cas d'erreur réseau ou serveur, afficher un message d'erreur
+                explDiv.innerHTML = `
+                    <div class="mt-4 bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-400 text-sm">Explication non disponible.</p>
+                    </div>
+                `;
+            }
         }
 
         function afficherErreur(msg) {
@@ -192,7 +292,7 @@
             section.innerHTML = `
                 <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
                     <p class="text-red-700 font-bold">${msg}</p>
-                    <p class="text-red-500 text-sm mt-2 font-medium italic">Vérifiez votre connexion et reessayez.</p>
+                    <p class="text-red-500 text-sm mt-2 font-medium italic">Vérifiez votre connexion et réessayez.</p>
                 </div>`;
         }
     </script>

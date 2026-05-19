@@ -1,7 +1,7 @@
 # .gitignore - Fichiers a ne PAS versionner
 
 # Environnement Python
-__pycache--/
+__pycache__/
 *.pyc
 venv/
 .env
@@ -17,3 +17,8 @@ Thumbs.db
 .vscode/
 .idea/.venv/
 .venv/
+
+# Cles API - NE JAMAIS COMMITTER
+.env
+
+
