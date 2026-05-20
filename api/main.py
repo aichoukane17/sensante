@@ -10,10 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from groq import Groq
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # --- 1. CONFIGURATION & ENVIRONNEMENT ---
 load_dotenv()
-#os.environ["GROQ_API_KEY"] = "" : cela permet d'ecraser de force la cle
 
 # --- 2. INITIALISATION DE L'APPLICATION FASTAPI ---
 app = FastAPI(
@@ -59,7 +60,6 @@ except Exception as e:
 
 # --- 5. SCHÉMAS PYDANTIC ---
 
-# Pour /predict
 class PatientInput(BaseModel):
     age: int = Field(..., ge=0, le=120)
     sexe: str = Field(...)
@@ -76,7 +76,6 @@ class DiagnosticOutput(BaseModel):
     confiance: str
     message: str
 
-# Pour /explain
 class ExplainInput(BaseModel):
     diagnostic: str = Field(..., description="Diagnostic predit par le modele")
     probabilite: float = Field(..., description="Probabilite du diagnostic")
@@ -89,16 +88,21 @@ class ExplainOutput(BaseModel):
     explication: str = Field(..., description="Explication en francais")
     modele_llm: str = Field(default="llama-3.1-8b-instant", description="Modele LLM utilise")
 
+
 # --- 6. PROMPTS ---
-SYSTEM_PROMPT = """Tu es un assistant medical senegalais.
-Tu recois un diagnostic et des donnees patient.
-Explique le resultat en francais simple,
-comme un medecin parlerait a son patient.
-Sois rassurant mais recommande toujours
-une consultation medicale.
-Maximum 3 phrases.
-Ne fais JAMAIS de diagnostic toi-meme.
-Tu expliques uniquement le diagnostic fourni."""
+SYSTEM_PROMPT = """
+Tu es un assistant médical virtuel pour l'application SenSante au Sénégal. 
+Ton rôle est d'expliquer au patient de manière simple, rassurante et pédagogique 
+le diagnostic et la probabilité renvoyés par un modèle d'IA local.
+
+CONSIGNES CRUCIALES DE STYLE :
+1. Tu dois obligatoirement saluer le patient chaleureusement en wolof au début (ex: 'As-salamu alaykum', 'Nanga def').
+2. Rédige ton explication médicale principale en français simple, mais intègre naturellement 
+des mots ou expressions en wolof adaptés au contexte de la santé pour instaurer la confiance 
+(ex: utilise 'tane' pour aller mieux, 'fadiou' pour se soigner/consulter, 'nelaw' 
+pour le repos, 'ndokh' pour l'eau, etc.).
+3. Reste toujours bienveillant et professionnel. Rappelle subtilement à la fin qu'il faut voir un vrai docteur.
+"""
 
 # --- 7. ROUTES API ---
 
@@ -125,7 +129,6 @@ def predict(patient: PatientInput):
             message="Le modele de prediction est indisponible sur le serveur."
         )
     try:
-        # Encodage du sexe
         try:
             sexe_enc = le_sexe.transform([patient.sexe])[0]
         except ValueError:
@@ -133,7 +136,6 @@ def predict(patient: PatientInput):
                 diagnostic="erreur", probabilite=0.0, confiance="aucune",
                 message=f"Sexe invalide : {patient.sexe}")
 
-        # Encodage de la région
         try:
             region_enc = le_region.transform([patient.region])[0]
         except ValueError:
@@ -141,7 +143,6 @@ def predict(patient: PatientInput):
                 diagnostic="erreur", probabilite=0.0, confiance="aucune",
                 message=f"Region inconnue : {patient.region}")
 
-        # Préparation des features
         features = np.array([[
             patient.age, sexe_enc, patient.temperature,
             patient.tension_sys, int(patient.toux),
@@ -149,11 +150,9 @@ def predict(patient: PatientInput):
             region_enc
         ]])
 
-        # Prediction
         diagnostic = model.predict(features)[0]
         proba_max = float(model.predict_proba(features)[0].max())
         
-        # Calcul de la confiance
         confiance = ("haute" if proba_max >= 0.7 
                      else "moyenne" if proba_max >= 0.4 
                      else "faible")
@@ -187,7 +186,6 @@ def explain(data: ExplainInput):
             modele_llm="aucun"
         )
 
-    # Construire le user prompt
     user_prompt = (
         f"Patient : {data.sexe}, {data.age} ans, "
         f"region {data.region}\n"
@@ -204,8 +202,8 @@ def explain(data: ExplainInput):
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=200,
-            temperature=0.3
+            max_tokens=500,
+            temperature=1.0
         )
         explication = response.choices[0].message.content
 
@@ -213,3 +211,11 @@ def explain(data: ExplainInput):
         explication = f"Erreur lors de l'appel au LLM : {str(e)}"
 
     return ExplainOutput(explication=explication)
+
+# --- 8. SERVIR LE FRONTEND ---
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+@app.get("/")
+def serve_frontend():
+    """Servir la page d'accueil."""
+    return FileResponse("frontend/index.html")
