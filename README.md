@@ -1,23 +1,16 @@
 # SenSante
 
-Assistant de pre-diagnostic medical pour le Senegal.
+Assistant pre-diagnostic medical pour le Senegal.
 
-## Description
+## Demo en ligne
+https://aissata-rahmatoulaye-sensante.hf.space
 
-SenSante utilise le Machine Learning pour aider au pre-diagnostic des maladies courantes (paludisme, grippe, typhoide) a partir des symptomes du patient.
-
-## Structure du projet
-
-- `data/` : Donnees patients (CSV)
-- `models/` : Modele ML serialise
-- `api/` : API FastAPI
-- `frontend/` : Interface web
-- `notebooks/` : Scripts d'exploration
+## Stack
+- scikit-learn (modele ML)
+- FastAPI (API REST)
+- Tailwind CSS (frontend responsive)
+- Groq / Llama 3 (explication LLM)
+- Docker (conteneurisation)
 
 ## Auteur
-
-Aissata Rahmatoulaye Kane - L2 GLSIC - ESP/UCAD
-
-## Cours
-
-Integration de Modeles IA - Dr. El Hadji Bassirou TOURE
+Aissata Rahmatoulaye Kane - L2 GLSI - ESP/UCAD - 2026
